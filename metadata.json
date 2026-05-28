@@ -1,0 +1,6 @@
+{
+  "name": "India Parcel Tracker",
+  "description": "A booking, pricing estimate, and real-time tracking dashboard for parcel deliveries across India.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
