@@ -56,6 +56,40 @@ class ParcelViewModel(private val repository: ParcelRepository) : ViewModel() {
         initialValue = emptyList()
     )
 
+    private val _isAdminUnlocked = MutableStateFlow(false)
+    val isAdminUnlocked: StateFlow<Boolean> = _isAdminUnlocked.asStateFlow()
+
+    val adminBookings: StateFlow<List<ParcelBooking>> = repository.getAllBookings().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun tryUnlockAdmin(passcode: String): Boolean {
+        return if (passcode == "8389" || passcode == "akash838") {
+            _isAdminUnlocked.value = true
+            true
+        } else {
+            false
+        }
+    }
+
+    fun forceAdminUnlock(unlocked: Boolean) {
+        _isAdminUnlocked.value = unlocked
+    }
+
+    fun updateBookingAdmin(booking: ParcelBooking) {
+        viewModelScope.launch {
+            repository.updateBooking(booking)
+        }
+    }
+
+    fun deleteBookingAdmin(booking: ParcelBooking) {
+        viewModelScope.launch {
+            repository.deleteBooking(booking)
+        }
+    }
+
     init {
         viewModelScope.launch {
             repository.getAllBookings().first().let { currentList ->

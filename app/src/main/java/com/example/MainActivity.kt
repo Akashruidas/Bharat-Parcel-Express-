@@ -137,7 +137,6 @@ fun HeaderSection(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1112,173 +1111,1008 @@ fun HistoryRowCard(parcel: ParcelBooking, index: Int, onTrack: () -> Unit) {
 fun AccountTabScreen(viewModel: ParcelViewModel) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    
+    val isAdminUnlocked by viewModel.isAdminUnlocked.collectAsStateWithLifecycle()
+    val isSystemAdmin = currentUser?.email == "akashruidas838@gmail.com" || isAdminUnlocked
+
+    var showAdminDashboard by remember { mutableStateOf(false) }
+    var activeAuthTab by remember { mutableStateOf(0) } // 0 for Customer, 1 for Admin
+
+    var secretPasscodeVal by remember { mutableStateOf("") }
+    var passcodeError by remember { mutableStateOf(false) }
 
     var isLoginMode by remember { mutableStateOf(true) }
-
     var nameVal by remember { mutableStateOf("") }
     var emailVal by remember { mutableStateOf("") }
     var passVal by remember { mutableStateOf("") }
 
-    if (currentUser != null) {
+    // If Admin mode is unlocked and they chose to see the admin dashboard, open it.
+    if (showAdminDashboard && isSystemAdmin) {
+        AdminConsoleView(viewModel = viewModel, onExit = { showAdminDashboard = false })
+    } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = AccentSaffron, modifier = Modifier.size(96.dp))
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = currentUser!!.name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(text = currentUser!!.email, fontSize = 14.sp, color = SlateTextSecondary)
+            // Profile state (Logged-in customer / Admin operator)
+            if (currentUser != null || isAdminUnlocked) {
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                // Header depending on current mode
+                if (isAdminUnlocked && currentUser == null) {
+                    // Logged in strictly as Admin Operator
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = AccentSaffron,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .background(AccentSaffron.copy(alpha = 0.1f), CircleShape)
+                            .padding(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = "System Admin Operator", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = "Secure Passcode Authentication active", fontSize = 13.sp, color = SlateTextSecondary)
+                } else {
+                    // Logged in as Customer (who might or might not have system admin privileges)
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        tint = AccentGreen,
+                        modifier = Modifier.size(96.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = currentUser?.name ?: "Valued Customer", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = currentUser?.email ?: "", fontSize = 14.sp, color = SlateTextSecondary)
+                }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Operational Role", color = SlateTextSecondary, fontSize = 13.sp)
+                            Text(
+                                text = if (isSystemAdmin) "System Administrator" else "Standard Dispatcher",
+                                color = if (isSystemAdmin) AccentSaffron else IndiaGreen,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = Color(0x11FFFFFF), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Authorization Type", color = SlateTextSecondary, fontSize = 13.sp)
+                            Text(
+                                text = if (isAdminUnlocked) "Secure Token Only" else "User Credentials",
+                                color = Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Launch Developer Console if they have the system admin status
+                if (isSystemAdmin) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2E251B)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, AccentSaffron),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showAdminDashboard = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = AccentSaffron, modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("Developer Console", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Tap to manage system & bookings", color = SlateTextSecondary, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = AccentSaffron)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Log out actions
+                Button(
+                    onClick = {
+                        viewModel.logout()
+                        viewModel.forceAdminUnlock(false)
+                        showAdminDashboard = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Deauthorize & Logout", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                // Completely Separated Login View using Segmented Tabs
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // High-End Tab Selector
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CardBackground, RoundedCornerShape(12.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    listOf("Customer Portal", "Admin Access").forEachIndexed { index, title ->
+                        val isSelected = activeAuthTab == index
+                        val tabColor = if (isSelected) {
+                            if (index == 0) AccentGreen else AccentSaffron
+                        } else {
+                            Color.Transparent
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tabColor)
+                                .clickable { 
+                                    activeAuthTab = index
+                                    passcodeError = false
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (index == 0) Icons.Default.Person else Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color.White else SlateTextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) Color.White else SlateTextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (activeAuthTab == 0) {
+                    // CUSTOMER LOGIN / SIGNUP CARD
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = if (isLoginMode) "Customer Account Sign In" else "Create Customer Account",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Color.White,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (isLoginMode) "Securely log into your courier console." else "Register account details to preserve shipping list.",
+                                fontSize = 12.sp,
+                                color = SlateTextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            if (!isLoginMode) {
+                                OutlinedTextField(
+                                    value = nameVal,
+                                    onValueChange = { nameVal = it },
+                                    label = { Text("Display Name") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+
+                            OutlinedTextField(
+                                value = emailVal,
+                                onValueChange = { emailVal = it },
+                                label = { Text("Email Address") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            OutlinedTextField(
+                                value = passVal,
+                                onValueChange = { passVal = it },
+                                label = { Text("Access Password") },
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            if (authState is AuthState.Error) {
+                                Text(
+                                    text = (authState as AuthState.Error).message,
+                                    color = Color.Red,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (isLoginMode) {
+                                        viewModel.login(emailVal, passVal)
+                                    } else {
+                                        viewModel.signup(nameVal, emailVal, passVal)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (authState is AuthState.Loading) {
+                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                                } else {
+                                    Text(
+                                        text = if (isLoginMode) "Identify & Login" else "Create Profile",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = if (isLoginMode) "New customer? Configure Account" else "Already setup? Credentials Login",
+                                color = AccentGreen,
+                                fontSize = 13.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        isLoginMode = !isLoginMode
+                                        viewModel.resetAuthState()
+                                    },
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    // SECURE DEVELOPMENT ADMIN TERMINAL
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, AccentSaffron.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = AccentSaffron,
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(AccentSaffron.copy(alpha = 0.1f), CircleShape)
+                                    .padding(14.dp)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(14.dp))
+                            
+                            Text(
+                                text = "System Operator Terminal",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Secure gateway restricted only to the system administrator. Enter the master security passcode key below.",
+                                fontSize = 12.sp,
+                                color = SlateTextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            OutlinedTextField(
+                                value = secretPasscodeVal,
+                                onValueChange = { 
+                                    secretPasscodeVal = it
+                                    passcodeError = false
+                                },
+                                label = { Text("Passcode Key") },
+                                trailingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = SlateTextSecondary) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                isError = passcodeError,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AccentSaffron,
+                                    unfocusedBorderColor = Color(0x33FFFFFF)
+                                )
+                            )
+                            
+                            if (passcodeError) {
+                                Text(
+                                    text = "Invalid Passcode. Authorization Denied.",
+                                    color = Color.Red,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Button(
+                                onClick = {
+                                    val success = viewModel.tryUnlockAdmin(secretPasscodeVal)
+                                    if (success) {
+                                        secretPasscodeVal = ""
+                                        passcodeError = false
+                                        showAdminDashboard = true
+                                    } else {
+                                        passcodeError = true
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentSaffron),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = "Authorize Admin Console",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdminConsoleView(
+    viewModel: ParcelViewModel,
+    onExit: () -> Unit
+) {
+    val bookings by viewModel.adminBookings.collectAsStateWithLifecycle()
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilterStatus by remember { mutableStateOf("All") }
+    var parcelToEdit by remember { mutableStateOf<ParcelBooking?>(null) }
+
+    // Stats calculations
+    val totalBookings = bookings.size
+    val totalRevenue = bookings.sumOf { it.priceRs }
+    val bookedCount = bookings.count { it.status == "Booked" }
+    val transitCount = bookings.count { it.status == "In Transit" || it.status == "Dispatched" }
+    val deliveredCount = bookings.count { it.status == "Delivered" }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Top Header
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, AccentSaffron),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = null,
+                            tint = AccentSaffron,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Admin Console",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "System Management & Fleet Control",
+                                fontSize = 11.sp,
+                                color = SlateTextSecondary
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onExit,
+                        modifier = Modifier.background(Color(0x22FFFFFF), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Exit Admin",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        // Stats Section
+        item {
+            Text(
+                text = "System Analytics",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = AccentSaffron,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+            )
+            
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Total Bookings Card
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Total Parcels", color = SlateTextSecondary, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("$totalBookings", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                    }
+                    // Revenue Card
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Total Revenue", color = SlateTextSecondary, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("₹${totalRevenue.toInt()}", color = IndiaGreen, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Booked", color = SlateTextSecondary, fontSize = 11.sp)
+                            Text("$bookedCount", color = AccentSaffron, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Transit", color = SlateTextSecondary, fontSize = 11.sp)
+                            Text("$transitCount", color = AccentGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Delivered", color = SlateTextSecondary, fontSize = 11.sp)
+                            Text("$deliveredCount", color = IndiaGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Parcel Type Distribution Chart
+        item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardBackground),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Status Profile", color = SlateTextSecondary, fontSize = 13.sp)
-                        Text(text = "Verified Fleet Member", color = IndiaGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Joined Date", color = SlateTextSecondary, fontSize = 13.sp)
-                        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-                        Text(text = sdf.format(Date(currentUser!!.createdAt)), color = Color.White, fontSize = 13.sp)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            Button(
-                onClick = { viewModel.logout() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Logout Account", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CardBackground),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = if (isLoginMode) "Fleet Member Login" else "Create Dispatcher Profile",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = Color.White,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = if (isLoginMode) "Securely log into your courier console." else "Register account details to preserve shipping list.",
-                        fontSize = 12.sp,
-                        color = SlateTextSecondary,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    if (!isLoginMode) {
-                        OutlinedTextField(
-                            value = nameVal,
-                            onValueChange = { nameVal = it },
-                            label = { Text("Display Name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    OutlinedTextField(
-                        value = emailVal,
-                        onValueChange = { emailVal = it },
-                        label = { Text("Email Address") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = passVal,
-                        onValueChange = { passVal = it },
-                        label = { Text("Access Password") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (authState is AuthState.Error) {
-                        Text(
-                            text = (authState as AuthState.Error).message,
-                            color = Color.Red,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            if (isLoginMode) {
-                                viewModel.login(emailVal, passVal)
-                            } else {
-                                viewModel.signup(nameVal, emailVal, passVal)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentSaffron),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        if (authState is AuthState.Loading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
-                        } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AccentSaffron,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isLoginMode) "Authenticate" else "Sign Up",
+                                text = "Parcel Type Distribution",
                                 fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
                                 color = Color.White
                             )
                         }
+                        Text(
+                            text = "Analytics",
+                            fontSize = 11.sp,
+                            color = SlateTextSecondary
+                        )
                     }
-
+                    
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = if (isLoginMode) "Don't have an account? Sign Up" else "Already setup? Login",
-                        color = AccentGreen,
-                        fontSize = 13.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                isLoginMode = !isLoginMode
-                                viewModel.resetAuthState()
-                            },
-                        textAlign = TextAlign.Center
+                    
+                    val allTypes = listOf("Documents", "Electronics", "Clothing", "Fragile", "Others")
+                    val counts = allTypes.associateWith { type -> 
+                        bookings.count { it.parcelType.equals(type, ignoreCase = true) } 
+                    }
+                    val total = counts.values.sum().coerceAtLeast(1)
+                    
+                    val colors = listOf(
+                        AccentSaffron,
+                        AccentGreen,
+                        Color(0xFF9575CD),
+                        IndiaGreen,
+                        Color(0xFF29B6F6)
                     )
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        allTypes.forEachIndexed { idx, type ->
+                            val count = counts[type] ?: 0
+                            val pct = count.toFloat() / total
+                            val color = colors[idx % colors.size]
+                            
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .background(color, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = type,
+                                            fontSize = 12.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    Text(
+                                        text = "$count (${(pct * 100).toInt()}%)",
+                                        fontSize = 12.sp,
+                                        color = SlateTextSecondary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = pct,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = color,
+                                    trackColor = Color(0xFF1E2638)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Search Bar
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search by ID, sender or receiver...", color = SlateTextSecondary) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SlateTextSecondary) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentSaffron,
+                    unfocusedBorderColor = CardBackground,
+                    focusedContainerColor = CardBackground,
+                    unfocusedContainerColor = CardBackground,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true
+            )
+        }
+
+        // Filter chips
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("All", "Booked", "In Transit", "Delivered").forEach { status ->
+                    val isSelected = selectedFilterStatus == status
+                    Card(
+                        onClick = { selectedFilterStatus = status },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) AccentSaffron else CardBackground
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = status,
+                                color = if (isSelected) Color.White else SlateTextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Parcel List Header
+        item {
+            Text(
+                text = "Manage Shipments (" + bookings.size + ")",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = AccentSaffron,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
+        }
+
+        // Filtering Bookings
+        val filteredBookings = bookings.filter { booking ->
+            val matchesSearch = booking.trackingNumber.contains(searchQuery, ignoreCase = true) ||
+                    booking.senderName.contains(searchQuery, ignoreCase = true) ||
+                    booking.recipientName.contains(searchQuery, ignoreCase = true) ||
+                    booking.recipientCity.contains(searchQuery, ignoreCase = true)
+
+            val matchesFilter = selectedFilterStatus == "All" ||
+                    (selectedFilterStatus == "In Transit" && (booking.status == "In Transit" || booking.status == "Dispatched" || booking.status == "Out for Delivery")) ||
+                    booking.status.equals(selectedFilterStatus, ignoreCase = true)
+
+            matchesSearch && matchesFilter
+        }
+
+        if (filteredBookings.isEmpty()) {
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = SlateTextSecondary,
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No parcel bookings match this filter.",
+                            color = SlateTextSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        } else {
+            items(filteredBookings) { booking ->
+                AdminParcelRow(
+                    booking = booking,
+                    isEditing = parcelToEdit?.id == booking.id,
+                    onToggleEdit = {
+                        parcelToEdit = if (parcelToEdit?.id == booking.id) null else booking
+                    },
+                    onUpdateStatus = { newStatus ->
+                        viewModel.updateBookingAdmin(booking.copy(status = newStatus, lastUpdateDate = System.currentTimeMillis()))
+                        parcelToEdit = null
+                    },
+                    onUpdateCarrier = { newCarrier ->
+                        viewModel.updateBookingAdmin(booking.copy(carrier = newCarrier, lastUpdateDate = System.currentTimeMillis()))
+                    },
+                    onDelete = {
+                        viewModel.deleteBookingAdmin(booking)
+                        parcelToEdit = null
+                    }
+                )
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun AdminParcelRow(
+    booking: ParcelBooking,
+    isEditing: Boolean,
+    onToggleEdit: () -> Unit,
+    onUpdateStatus: (String) -> Unit,
+    onUpdateCarrier: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val statusColor = when (booking.status) {
+        "Booked" -> AccentSaffron
+        "Dispatched", "In Transit" -> AccentGreen
+        "Out for Delivery" -> Color(0xFF9575CD)
+        "Delivered" -> IndiaGreen
+        else -> SlateTextSecondary
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, if (isEditing) AccentSaffron else Color.Transparent),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleEdit() }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Main Line Info
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = booking.trackingNumber,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "${booking.parcelType} • ₹${booking.priceRs.toInt()}",
+                        fontSize = 12.sp,
+                        color = SlateTextSecondary
+                    )
+                }
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = booking.status,
+                        color = statusColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // From -> To
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("FROM", color = SlateTextSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Text(booking.senderName, color = Color.White, fontSize = 12.sp, maxLines = 1)
+                    Text(booking.senderCity, color = SlateTextSecondary, fontSize = 11.sp)
+                }
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    tint = SlateTextSecondary,
+                    modifier = Modifier.padding(horizontal = 8.dp).size(16.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("TO", color = SlateTextSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Text(booking.recipientName, color = Color.White, fontSize = 12.sp, maxLines = 1)
+                    Text(booking.recipientCity, color = SlateTextSecondary, fontSize = 11.sp)
+                }
+            }
+
+            // Expanded Editor
+            if (isEditing) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0x22FFFFFF), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Update Status",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Status selection buttons
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("Booked", "Dispatched", "In Transit").forEach { status ->
+                            Button(
+                                onClick = { onUpdateStatus(status) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (booking.status == status) statusColor else Color(0xFF2B3340)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                Text(status, fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("Out for Delivery", "Delivered").forEach { status ->
+                            Button(
+                                onClick = { onUpdateStatus(status) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (booking.status == status) statusColor else Color(0xFF2B3340)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                Text(status, fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Carrier Fleet",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("Delhivery", "BlueDart", "India Post", "DTDC").forEach { carrier ->
+                        val isSelected = booking.carrier == carrier
+                        Card(
+                            onClick = { onUpdateCarrier(carrier) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) AccentGreen.copy(alpha = 0.2f) else Color(0xFF2B3340)
+                            ),
+                            border = BorderStroke(1.dp, if (isSelected) AccentGreen else Color.Transparent),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = carrier,
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) AccentGreen else Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Delete Button
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Purge Booking Record", color = Color.White, fontSize = 12.sp)
                 }
             }
         }

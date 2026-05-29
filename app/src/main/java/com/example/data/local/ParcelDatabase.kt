@@ -18,7 +18,7 @@ abstract class ParcelDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): ParcelDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                val instance = INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     ParcelDatabase::class.java,
                     "parcel_database"

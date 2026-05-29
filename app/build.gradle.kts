@@ -11,7 +11,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example"
+        applicationId = "com.aistudio.speedposttracker.vdrpqa"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
